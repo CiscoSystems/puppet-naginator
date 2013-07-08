@@ -33,7 +33,7 @@ class naginator {
     #
     # workaround for Debian packaging / Puppet design decision
     # regarding resource management in "non-standard" locations
-     if $::osfamily == 'debian' {
+    if $::osfamily == 'debian' {
         file { "/etc/nagios":
             ensure => link,
             target => "/etc/nagios3/conf.d",
@@ -41,14 +41,29 @@ class naginator {
     }
 
     Nagios_host <<| |>> {
+        max_check_attempts => "9",
+        target  => $::naginator::params::nagios_host_cfg,
         notify => Service[ "nagios_service" ],
     }
 
     Nagios_service <<| |>> {
+        target  => $::naginator::params::nagios_service_cfg,
         notify => Service[ "nagios_service" ],
     }
 
-    Nagios_hostextinfo <<| |>>
+    Nagios_hostextinfo <<| |>> {
+        target  => $::naginator::params::nagios_hostextinfo_cfg,
+    }
+
+    if ($::osfamily == 'Redhat') {
+        file { "/etc/nagios/conf.d/nagios_command.cfg":
+            ensure => present,
+            content => template( "naginator/rhel/command.cfg.erb" ),
+            mode => 644,
+            owner => nagios, group => nagios,
+            notify => Service["nagios_service"],
+        }
+    }
 
     file { $::naginator::params::cfg_files :
         ensure  => file,
@@ -78,4 +93,8 @@ class naginator {
         require => Package["nagios_package"],
     }
 
+    file { $::naginator::params::nagios_apache:
+         ensure => link,
+         target => $::naginator::params::nagios_apache,
+    }
 }
