@@ -28,7 +28,7 @@ class naginator::control_target {
     }
 
     naginator::nrpe::command { "check_glance":
-        command => "check_glance --host $::controller_node_address --auth_url http://$::controller_node_address:5000/v2.0/ --username admin --password $admin_password --tenant openstack --req_count 1 --req_images precise-x86_64";
+        command => "check_glance --host $::controller_node_address --auth_url http://$::controller_node_address:5000/v2.0/ --username admin --password $admin_password --tenant admin --req_count 1 --req_images precise-x86_64";
     }
 
     file { "check_glance":
@@ -53,7 +53,7 @@ class naginator::control_target {
     }
 
     naginator::nrpe::command { "check_keystone":
-        command => "check_keystone --auth_url http://$::controller_node_address:5000/v2.0/ --username admin --password $admin_password --tenant openstack volume identity compute image network ec2";
+        command => "check_keystone --auth_url http://$::controller_node_address:5000/v2.0/ --username admin --password $admin_password --tenant admin volume identity compute image network ec2";
     }
 
     file { "check_keystone":
@@ -78,7 +78,7 @@ class naginator::control_target {
     }
 
     naginator::nrpe::command { "check_novaapi":
-        command => "check_novaapi --auth_url http://$::controller_node_address:5000/v2.0/ --username admin --password $admin_password --tenant openstack";
+        command => "check_novaapi --auth_url http://$::controller_node_address:5000/v2.0/ --username admin --password $admin_password --tenant admin";
     }
 
     file { "check_novaapi":
