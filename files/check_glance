@@ -58,8 +58,6 @@ def collect_args():
   parser.add_argument('--req_images', metavar='imagesName', type=str, nargs='+',
         required=False,
         help='name of images who must be available')
-  parser.add_argument('--region_name', metavar='region_name', type=str,
-        help='Region to select for authentication')
   parser.add_argument('--glance_url', metavar='glanceUrl', type=str,
         help='URL of the Glance API server. Overrides --host if specified.')
   return parser
