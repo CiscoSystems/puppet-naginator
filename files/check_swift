@@ -1,0 +1,184 @@
+#!/usr/bin/env python
+# CPU and Memory utilization on host by VM for Nagios
+# Author: Rahul Krishna Upadhyaya <rahuupad@cisco.com>
+#
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+''' This script would be invoked by Nagios Server
+    as NRPE and would check if the basic swift functionality
+    like donwload,upload and delete are taking place properly
+
+    Returns four states under following conditions
+    STATE_OK : When upload+download+delete commands work fine
+    STATE_UNKNOWN : Swift command not found/not installed
+    STATE_WARNING : Swift Seems fine, problem with this script
+    STATE_CRITICAL: Swift has problmes uploading/downloading/deleting '''
+
+
+import os
+import sys
+import argparse
+import subprocess
+import random
+import tempfile
+
+# defining the states
+STATE_OK = 0
+STATE_WARNING = 1
+STATE_CRITICAL = 2
+STATE_UNKNOWN = 3
+
+# adding parameters to the argument parser
+parserobj = argparse.ArgumentParser()
+parserobj.add_argument('-a', '--authURL',   required=True,
+                       help="Auth URL for getting the auth token ")
+parserobj.add_argument('-u', '--username',  required=True,
+                       help="Username for getting the auth token ")
+parserobj.add_argument('-k', '--key',       required=True,
+                       help="Password for the user for getting auth token")
+parserobj.add_argument('-x', '--tenant',    required=True,
+                       help="tenant name for getting auth token")
+parserobj.add_argument('-c', '--container', default='check_swift',
+                       help="name of container to upload")
+parserobj.add_argument('-s', '--sizemax',   default='1024', type=int,
+                       help="max sized file to upload")
+args = parserobj.parse_args()
+
+# exporting ENV variables to run openstack commands
+os.environ['OS_AUTH_URL'] = args.authURL
+os.environ['OS_USERNAME'] = args.username
+os.environ['OS_PASSWORD'] = args.key
+os.environ['OS_TENANT_NAME'] = args.tenant
+
+# creating a file of random size and name
+randomsize = random.randint(1, args.sizemax)
+tmpdir = '/tmp/nagios_swift'
+if os.path.dirname(tmpdir):
+    for the_file in os.listdir(tmpdir):
+        file_path = os.path.join(tmpdir, the_file)
+        try:
+            if os.path.isfile(file_path):
+                os.unlink(file_path)
+        except Exception, excp:
+            print excp
+
+
+if not os.path.exists(tmpdir):
+    os.makedirs(tmpdir)
+tmpfileobj = tempfile.NamedTemporaryFile(dir=tmpdir)
+tempfilename = tmpfileobj.name
+container_name = args.container
+
+file_desc = open(tempfilename, "wb")
+file_desc.seek(randomsize - 1)
+file_desc.write("\0")
+file_desc.close()
+
+# a function to execute commands on shell
+
+
+def exec_command(cmd):
+    ''' Exectuting commands that are passed to the function '''
+    try:
+        cmd_output, cmd_err = subprocess.Popen(
+            cmd, stdout=subprocess.PIPE).communicate()
+        if cmd_err:
+            raise Exception("Critical Swift Error Occured")
+        return cmd_output
+    except Exception as excp:
+        print "CRITICAL : " + str(excp)
+        sys.exit(STATE_CRITICAL)
+
+
+# finding if swift is installed and if yes then returns the location
+def which(progname):
+    ''' Checks if Swift is installed and if it is found
+    in the environment then return the absolute path '''
+    for path in os.environ["PATH"].split(":"):
+        if os.path.exists(path + "/" + progname):
+            return path + "/" + progname
+
+    return None
+
+# generating a warning if swift command not found in the ENV
+if (which('swift') == None):
+    print "No Swift Commad Found"
+    sys.exit(STATE_UNKNOWN)
+
+
+# uploading object to swift
+def sw_upload():
+    ''' Tests if Swift Upload works fine '''
+    cmd_upload = [which('swift'), "upload",  container_name, tempfilename]
+    exec_command(cmd_upload)
+
+# downloading objects from swift
+
+
+def sw_download():
+    ''' Tests if Swift Download works fine '''
+    cmd_download = [which('swift'), "download", container_name]
+    exec_command(cmd_download)
+
+# deleting objects from swift
+
+
+def sw_delete():
+    ''' Checks if Swift Delete works fine '''
+    cmd_delete = [which('swift'), "delete",
+                  container_name, tempfilename[1:]]
+    exec_command(cmd_delete)
+    cmd_del_container = [which('swift'), 'delete', container_name]
+    exec_command(cmd_del_container)
+
+# function to clean-up containers if exist
+
+
+def cleanup():
+    ''' Cleans up the container passed to this script if they are found
+     on executing swift list command '''
+    cmd_list = [which('swift'), "list"]
+    outputlist = exec_command(cmd_list)
+    if container_name in outputlist:
+        cmd_clean = [which('swift'), "delete",
+                     container_name]
+        exec_command(cmd_clean)
+
+
+# running the swift commands and sending OK if all succeed.
+try:
+    cleanup()
+    sw_upload()
+    sw_download()
+    sw_delete()
+except Exception as excp:
+    print "WARNING " + str(excp)
+    sys.exit(STATE_WARNING)
+
+print "OK"
+cleanup()
+if os.path.exist(tmpdir):
+    for the_file in os.listdir(tmpdir):
+        file_path = os.path.join(tmpdir, the_file)
+        try:
+            if os.path.isfile(file_path):
+                os.unlink(file_path)
+        except Exception, excp:
+            print excp
+sys.exit(STATE_OK)
