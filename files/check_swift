@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# CPU and Memory utilization on host by VM for Nagios
+# Script to check functionality on a Openstack-Swift installation
 # Author: Rahul Krishna Upadhyaya <rahuupad@cisco.com>
 #
 #
@@ -69,7 +69,7 @@ os.environ['OS_TENANT_NAME'] = args.tenant
 # creating a file of random size and name
 randomsize = random.randint(1, args.sizemax)
 tmpdir = '/tmp/nagios_swift'
-if os.path.dirname(tmpdir):
+if os.path.exists(tmpdir):
     for the_file in os.listdir(tmpdir):
         file_path = os.path.join(tmpdir, the_file)
         try:
@@ -91,8 +91,6 @@ file_desc.write("\0")
 file_desc.close()
 
 # a function to execute commands on shell
-
-
 def exec_command(cmd):
     ''' Exectuting commands that are passed to the function '''
     try:
@@ -129,16 +127,12 @@ def sw_upload():
     exec_command(cmd_upload)
 
 # downloading objects from swift
-
-
 def sw_download():
     ''' Tests if Swift Download works fine '''
     cmd_download = [which('swift'), "download", container_name]
     exec_command(cmd_download)
 
 # deleting objects from swift
-
-
 def sw_delete():
     ''' Checks if Swift Delete works fine '''
     cmd_delete = [which('swift'), "delete",
@@ -148,8 +142,6 @@ def sw_delete():
     exec_command(cmd_del_container)
 
 # function to clean-up containers if exist
-
-
 def cleanup():
     ''' Cleans up the container passed to this script if they are found
      on executing swift list command '''
@@ -173,12 +165,4 @@ except Exception as excp:
 
 print "OK"
 cleanup()
-if os.path.exist(tmpdir):
-    for the_file in os.listdir(tmpdir):
-        file_path = os.path.join(tmpdir, the_file)
-        try:
-            if os.path.isfile(file_path):
-                os.unlink(file_path)
-        except Exception, excp:
-            print excp
 sys.exit(STATE_OK)
