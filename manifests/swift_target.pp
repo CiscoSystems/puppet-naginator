@@ -13,7 +13,7 @@ class naginator::swift_target inherits naginator::common_target{
     naginator::nrpe::command { 'check_swift':
       command => "check_swift \
       -a=http://${::controller_node_address}:5000/v2.0/ \
-      -u=admin -k=${admin_password} -x=admin";
+      -u=admin -k=${::admin_password} -x=admin";
     }
 
     file { 'check_swift':
