@@ -95,7 +95,6 @@ class naginator {
     }
 
     file { $::naginator::params::nagios_apache:
-         ensure => link,
-         target => $::naginator::params::nagios_apache,
+        ensure => file,
     }
 }
